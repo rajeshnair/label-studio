@@ -3,14 +3,26 @@ import os
 from mmdet.apis import init_detector, inference_detector
 
 from label_studio.ml import LabelStudioMLBase
-from label_studio.ml.utils import get_image_local_path, get_image_size, get_single_tag_keys
+from label_studio.ml.utils import (
+    get_image_local_path,
+    get_image_size,
+    get_single_tag_keys,
+)
 from label_studio.utils.io import json_load
 
 
 class MMDetection(LabelStudioMLBase):
     """Object detector based on https://github.com/open-mmlab/mmdetection"""
 
-    def __init__(self, config_file, checkpoint_file, labels_file=None, score_threshold=0.3, device='cpu', **kwargs):
+    def __init__(
+        self,
+        config_file,
+        checkpoint_file,
+        labels_file=None,
+        score_threshold=0.3,
+        device="cpu",
+        **kwargs
+    ):
         """
         Load MMDetection model from config and checkpoint into memory.
         (Check https://mmdetection.readthedocs.io/en/v1.2.0/GETTING_STARTED.html#high-level-apis-for-testing-images)
@@ -33,26 +45,32 @@ class MMDetection(LabelStudioMLBase):
         else:
             self.label_map = {}
 
-        self.from_name, self.to_name, self.value, self.labels_in_config = get_single_tag_keys(
-            self.parsed_label_config, 'RectangleLabels', 'Image')
+        (
+            self.from_name,
+            self.to_name,
+            self.value,
+            self.labels_in_config,
+        ) = get_single_tag_keys(self.parsed_label_config, "RectangleLabels", "Image")
         schema = list(self.parsed_label_config.values())[0]
         self.labels_in_config = set(self.labels_in_config)
 
         # Collect label maps from `predicted_values="airplane,car"` attribute in <Label> tag
-        self.labels_attrs = schema.get('labels_attrs')
+        self.labels_attrs = schema.get("labels_attrs")
         if self.labels_attrs:
             for label_name, label_attrs in self.labels_attrs.items():
-                for predicted_value in label_attrs.get('predicted_values', '').split(','):
+                for predicted_value in label_attrs.get("predicted_values", "").split(
+                    ","
+                ):
                     self.label_map[predicted_value] = label_name
 
-        print('Load new model from: ', config_file, checkpoint_file)
+        print("Load new model from: ", config_file, checkpoint_file)
         self.model = init_detector(config_file, checkpoint_file, device=device)
         self.score_thresh = score_threshold
 
     def predict(self, tasks, **kwargs):
         assert len(tasks) == 1
         task = tasks[0]
-        image_path = get_image_local_path(task['data'][self.value])
+        image_path = get_image_local_path(task["data"][self.value])
         model_results = inference_detector(self.model, image_path)
         results = []
         all_scores = []
@@ -61,7 +79,7 @@ class MMDetection(LabelStudioMLBase):
             output_label = self.label_map.get(label, label)
 
             if output_label not in self.labels_in_config:
-                print(output_label + ' label not found in project config.')
+                print(output_label + " label not found in project config.")
                 continue
             for bbox in bboxes:
                 bbox = list(bbox)
@@ -71,25 +89,24 @@ class MMDetection(LabelStudioMLBase):
                 if score < self.score_thresh:
                     continue
                 x, y, xmax, ymax = bbox[:4]
-                results.append({
-                    'from_name': self.from_name,
-                    'to_name': self.to_name,
-                    'type': 'rectanglelabels',
-                    'value': {
-                        'rectanglelabels': [output_label],
-                        'x': int(x / img_width * 100),
-                        'y': int(y / img_height * 100),
-                        'width': int((xmax - x) / img_width * 100),
-                        'height': int((ymax - y) / img_height * 100)
-                    },
-                    'score': score
-                })
+                results.append(
+                    {
+                        "from_name": self.from_name,
+                        "to_name": self.to_name,
+                        "type": "rectanglelabels",
+                        "value": {
+                            "rectanglelabels": [output_label],
+                            "x": int(x / img_width * 100),
+                            "y": int(y / img_height * 100),
+                            "width": int((xmax - x) / img_width * 100),
+                            "height": int((ymax - y) / img_height * 100),
+                        },
+                        "score": score,
+                    }
+                )
                 all_scores.append(score)
         avg_score = sum(all_scores) / len(all_scores)
-        return [{
-            'result': results,
-            'score': avg_score
-        }]
+        return [{"result": results, "score": avg_score}]
 
     def fit(self, completions, workdir=None, **kwargs):
         return {}

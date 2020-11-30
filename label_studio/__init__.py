@@ -1,5 +1,5 @@
 # Package name
-package_name = 'label-studio'
+package_name = "label-studio"
 
 # Package version
-__version__ = '0.8.1'
+__version__ = "0.8.1"

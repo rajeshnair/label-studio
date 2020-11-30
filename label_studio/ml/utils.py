@@ -45,31 +45,37 @@ def get_single_tag_keys(parsed_label_config, control_type, object_type):
     """
     assert len(parsed_label_config) == 1
     from_name, info = list(parsed_label_config.items())[0]
-    assert info['type'] == control_type, 'Label config has control tag "<' + info['type'] + '>" but "<' + control_type + '>" is expected for this model.'  # noqa
+    assert info["type"] == control_type, (
+        'Label config has control tag "<'
+        + info["type"]
+        + '>" but "<'
+        + control_type
+        + '>" is expected for this model.'
+    )  # noqa
 
-    assert len(info['to_name']) == 1
-    assert len(info['inputs']) == 1
-    assert info['inputs'][0]['type'] == object_type
-    to_name = info['to_name'][0]
-    value = info['inputs'][0]['value']
-    return from_name, to_name, value, info['labels']
+    assert len(info["to_name"]) == 1
+    assert len(info["inputs"]) == 1
+    assert info["inputs"][0]["type"] == object_type
+    to_name = info["to_name"][0]
+    value = info["inputs"][0]["value"]
+    return from_name, to_name, value, info["labels"]
 
 
 def is_skipped(completion):
-    if len(completion['completions']) != 1:
+    if len(completion["completions"]) != 1:
         return False
-    completion = completion['completions'][0]
-    return completion.get('skipped', False) or completion.get('was_cancelled', False)
+    completion = completion["completions"][0]
+    return completion.get("skipped", False) or completion.get("was_cancelled", False)
 
 
 def get_choice(completion):
-    return completion['completions'][0]['result'][0]['value']['choices'][0]
+    return completion["completions"][0]["result"][0]["value"]["choices"][0]
 
 
 def get_image_local_path(url, image_cache_dir=None):
-    is_local_file = url.startswith('/data')
+    is_local_file = url.startswith("/data")
     if is_local_file:
-        filename, dir_path = url.split('/data/')[1].split('?d=')
+        filename, dir_path = url.split("/data/")[1].split("?d=")
         dir_path = str(urllib.parse.unquote(dir_path))
         filepath = os.path.join(dir_path, filename)
         if not os.path.exists(filepath):
@@ -79,12 +85,14 @@ def get_image_local_path(url, image_cache_dir=None):
         parsed_url = urlparse(url)
         url_filename = os.path.basename(parsed_url.path)
         url_hash = hashlib.md5(url.encode()).hexdigest()[:6]
-        filepath = os.path.join(image_cache_dir, url_hash + '__' + url_filename)
+        filepath = os.path.join(image_cache_dir, url_hash + "__" + url_filename)
         if not os.path.exists(filepath):
-            logger.info('Download {url} to {filepath}'.format(url=url, filepath=filepath))
+            logger.info(
+                "Download {url} to {filepath}".format(url=url, filepath=filepath)
+            )
             r = requests.get(url, stream=True)
             r.raise_for_status()
-            with io.open(filepath, mode='wb') as fout:
+            with io.open(filepath, mode="wb") as fout:
                 fout.write(r.content)
     return filepath
 

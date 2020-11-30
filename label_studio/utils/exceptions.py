@@ -1,8 +1,6 @@
-
-
 # exception for import tasks or config validation
 class ValidationError(Exception):
-    def __init__(self, detail=None, code=''):
+    def __init__(self, detail=None, code=""):
         class SubDetail:
             def __init__(self, msg, code):
                 self.msg, self.code = msg, code

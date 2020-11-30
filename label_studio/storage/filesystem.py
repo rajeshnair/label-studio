@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class JSONStorage(BaseStorage):
 
-    description = 'JSON task file'
+    description = "JSON task file"
 
     def __init__(self, **kwargs):
         super(JSONStorage, self).__init__(**kwargs)
@@ -24,11 +24,11 @@ class JSONStorage(BaseStorage):
         elif isinstance(tasks, dict):
             self.data = tasks
         elif isinstance(self.data, list):
-            self.data = {int(task['id']): task for task in tasks}
+            self.data = {int(task["id"]): task for task in tasks}
         self._save()
 
     def _save(self):
-        with open(self.path, mode='w', encoding='utf8') as fout:
+        with open(self.path, mode="w", encoding="utf8") as fout:
             json.dump(self.data, fout, ensure_ascii=False)
 
     @property
@@ -75,13 +75,16 @@ class JSONStorage(BaseStorage):
 
 
 def already_exists_error(what, path):
-    raise RuntimeError('{path} {what} already exists. Use "--force" option to recreate it.'.format(
-        path=path, what=what))
+    raise RuntimeError(
+        '{path} {what} already exists. Use "--force" option to recreate it.'.format(
+            path=path, what=what
+        )
+    )
 
 
 class DirJSONsStorage(BaseStorage):
 
-    description = 'Directory with JSON task files'
+    description = "Directory with JSON task files"
 
     def __init__(self, **kwargs):
         super(DirJSONsStorage, self).__init__(**kwargs)
@@ -92,7 +95,7 @@ class DirJSONsStorage(BaseStorage):
         return self.path
 
     def get(self, id):
-        filename = os.path.join(self.path, str(id) + '.json')
+        filename = os.path.join(self.path, str(id) + ".json")
         if os.path.exists(filename):
             return json_load(filename)
 
@@ -100,15 +103,15 @@ class DirJSONsStorage(BaseStorage):
         return id in set(self.ids())
 
     def set(self, id, value):
-        filename = os.path.join(self.path, str(id) + '.json')
-        with open(filename, 'w', encoding='utf8') as fout:
+        filename = os.path.join(self.path, str(id) + ".json")
+        with open(filename, "w", encoding="utf8") as fout:
             json.dump(value, fout, indent=2, sort_keys=True)
 
     def set_many(self, keys, values):
         raise NotImplementedError
 
     def ids(self):
-        for f in iter_files(self.path, '.json'):
+        for f in iter_files(self.path, ".json"):
             yield int(os.path.splitext(os.path.basename(f))[0])
 
     def max_id(self):
@@ -119,11 +122,11 @@ class DirJSONsStorage(BaseStorage):
 
     def items(self):
         for key in self.ids():
-            filename = os.path.join(self.path, str(key) + '.json')
+            filename = os.path.join(self.path, str(key) + ".json")
             yield key, json_load(filename)
 
     def remove(self, key):
-        filename = os.path.join(self.path, str(key) + '.json')
+        filename = os.path.join(self.path, str(key) + ".json")
         if os.path.exists(filename):
             os.remove(filename)
 
@@ -141,8 +144,8 @@ class TasksJSONStorage(JSONStorage):
 
     def __init__(self, path, project_path, **kwargs):
         super(TasksJSONStorage, self).__init__(
-            project_path=project_path,
-            path=os.path.join(project_path, 'tasks.json'))
+            project_path=project_path, path=os.path.join(project_path, "tasks.json")
+        )
 
 
 class ExternalTasksJSONStorage(CloudStorage):
@@ -150,11 +153,20 @@ class ExternalTasksJSONStorage(CloudStorage):
     form = BaseForm
     description = 'Local [loading tasks from "tasks.json" file]'
 
-    def __init__(self, name, path, project_path, prefix=None, create_local_copy=False, regex='.*', **kwargs):
+    def __init__(
+        self,
+        name,
+        path,
+        project_path,
+        prefix=None,
+        create_local_copy=False,
+        regex=".*",
+        **kwargs
+    ):
         super(ExternalTasksJSONStorage, self).__init__(
             name=name,
             project_path=project_path,
-            path=os.path.join(project_path, 'tasks.json'),
+            path=os.path.join(project_path, "tasks.json"),
             use_blob_urls=False,
             prefix=None,
             regex=None,
@@ -166,7 +178,7 @@ class ExternalTasksJSONStorage(CloudStorage):
         self.data = {}
 
     def _save(self):
-        with open(self.path, mode='w', encoding='utf8') as fout:
+        with open(self.path, mode="w", encoding="utf8") as fout:
             json.dump(self.data, fout, ensure_ascii=False)
 
     def _get_client(self):
@@ -177,7 +189,7 @@ class ExternalTasksJSONStorage(CloudStorage):
 
     @property
     def url_prefix(self):
-        return ''
+        return ""
 
     @property
     def readable_path(self):
@@ -208,7 +220,10 @@ class ExternalTasksJSONStorage(CloudStorage):
 
     def _remove_id_from_keys_map(self, id):
         full_key = self.key_prefix + str(id)
-        assert self._ids_keys_map[id]['key'] == full_key, (self._ids_keys_map[id]['key'], full_key)
+        assert self._ids_keys_map[id]["key"] == full_key, (
+            self._ids_keys_map[id]["key"],
+            full_key,
+        )
         self._selected_ids.remove(id)
         self._ids_keys_map.pop(id)
         self._keys_ids_map.pop(full_key)
@@ -216,22 +231,22 @@ class ExternalTasksJSONStorage(CloudStorage):
     def remove(self, id):
         id = int(id)
 
-        logger.debug('Remove id=' + str(id) + ' from ids.json')
+        logger.debug("Remove id=" + str(id) + " from ids.json")
         self._remove_id_from_keys_map(id)
         self._save_ids()
 
-        logger.debug('Remove id=' + str(id) + ' from tasks.json')
+        logger.debug("Remove id=" + str(id) + " from tasks.json")
         self.data.pop(id, None)
         self._save()
 
     def remove_all(self):
 
-        logger.debug('Remove ' + str(len(self.data)) + ' records from ids.json')
+        logger.debug("Remove " + str(len(self.data)) + " records from ids.json")
         for id in self.data:
             self._remove_id_from_keys_map(id)
         self._save_ids()
 
-        logger.debug('Remove all data from tasks.json')
+        logger.debug("Remove all data from tasks.json")
         # remove record from tasks.json
         self.data = {}
         self._save()
@@ -246,4 +261,5 @@ class CompletionsDirStorage(DirJSONsStorage):
         super(CompletionsDirStorage, self).__init__(
             name=name,
             project_path=project_path,
-            path=os.path.join(project_path, 'completions'))
+            path=os.path.join(project_path, "completions"),
+        )

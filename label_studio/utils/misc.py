@@ -28,20 +28,20 @@ logger = logging.getLogger(__name__)
 class Settings:
     TASKS_MAX_NUMBER = 250000
     TASKS_MAX_FILE_SIZE = 200 * 1024 * 1024
-    UPLOAD_DATA_UNDEFINED_NAME = '$undefined$'
+    UPLOAD_DATA_UNDEFINED_NAME = "$undefined$"
 
 
 # make an answer to client
-def answer(status=0, msg='', result=None):
+def answer(status=0, msg="", result=None):
     if status == 0 and not msg and result is None:
         status = -1000
         msg = "nothing happened"
 
     if status == 200 and not msg:
-        msg = 'ok'
+        msg = "ok"
 
     a = {"status": status, "detail": msg}
-    a.update({'request': request.args})
+    a.update({"request": request.args})
 
     if result is not None:
         a.update({"result": result})
@@ -51,7 +51,7 @@ def answer(status=0, msg='', result=None):
 
 # make an answer as exception
 class AnswerException(Exception):
-    def __init__(self, status, msg='', result=None):
+    def __init__(self, status, msg="", result=None):
         self.status, self.msg, self.result = status, msg, result
         self.answer = answer(status, msg, result)
         Exception.__init__(self, self.answer)
@@ -66,18 +66,18 @@ def exception_handler(f):
         except AnswerException as e:
             traceback = tb.format_exc()
 
-            if 'traceback' not in e.result:
-                e.result['traceback'] = traceback
-            if hasattr(exception_f, 'request_id') and not e.result['request_id']:
-                e.result['request_id'] = exception_f.request_id
+            if "traceback" not in e.result:
+                e.result["traceback"] = traceback
+            if hasattr(exception_f, "request_id") and not e.result["request_id"]:
+                e.result["request_id"] = exception_f.request_id
             return answer(e.status, e.msg, e.result)
 
         except Exception as e:
             traceback = tb.format_exc()
             logger.debug(traceback)
-            body = {'traceback': traceback}
-            if hasattr(exception_f, 'request_id'):
-                body['request_id'] = exception_f.request_id
+            body = {"traceback": traceback}
+            if hasattr(exception_f, "request_id"):
+                body["request_id"] = exception_f.request_id
             return answer(500, str(e), body)
 
     exception_f.__name__ = f.__name__
@@ -95,47 +95,54 @@ def exception_handler_page(f):
             logger.debug(traceback)
             print(traceback)
             return flask.render_template(
-                'includes/error.html',
-                error=error, header="Project loading error", traceback=traceback)
+                "includes/error.html",
+                error=error,
+                header="Project loading error",
+                traceback=traceback,
+            )
 
     exception_f.__name__ = f.__name__
     return exception_f
 
 
 def config_line_stripped(xml_config):
-    """ Remove comments
+    """Remove comments
 
     :param xml_config: xml config string
     :return: xml config string
     """
     xml_config = config_comments_free(xml_config)
-    return xml_config.replace('\n', '').replace('\r', '')
+    return xml_config.replace("\n", "").replace("\r", "")
 
 
 def config_comments_free(xml_config):
-    """ Remove \n and \r from xml, flat xml to string
+    """Remove \n and \r from xml, flat xml to string
 
     :param xml_config: xml config string
     :return: xml config string
     """
     tree = etree.fromstring(xml_config)
-    comments = tree.xpath('//comment()')
+    comments = tree.xpath("//comment()")
 
     for xml_config in comments:
         p = xml_config.getparent()
         if p:
             p.remove(xml_config)
-        xml_config = etree.tostring(tree, encoding='utf8', method='html').decode("utf-8")
+        xml_config = etree.tostring(tree, encoding="utf8", method="html").decode(
+            "utf-8"
+        )
 
     return xml_config
 
 
 def get_app_version():
-    return pkg_resources.get_distribution('label-studio').version
+    return pkg_resources.get_distribution("label-studio").version
 
 
-_LABEL_TAGS = {'Label', 'Choice'}
-_NOT_CONTROL_TAGS = {'Filter',}
+_LABEL_TAGS = {"Label", "Choice"}
+_NOT_CONTROL_TAGS = {
+    "Filter",
+}
 
 
 def parse_config(config_string):
@@ -157,10 +164,14 @@ def parse_config(config_string):
         return {}
 
     def _is_input_tag(tag):
-        return tag.attrib.get('name') and tag.attrib.get('value')
+        return tag.attrib.get("name") and tag.attrib.get("value")
 
     def _is_output_tag(tag):
-        return tag.attrib.get('name') and tag.attrib.get('toName') and tag.tag not in _NOT_CONTROL_TAGS
+        return (
+            tag.attrib.get("name")
+            and tag.attrib.get("toName")
+            and tag.tag not in _NOT_CONTROL_TAGS
+        )
 
     def _get_parent_output_tag_name(tag, outputs):
         # Find parental <Choices> tag for nested tags like <Choices><View><View><Choice>...
@@ -169,7 +180,7 @@ def parse_config(config_string):
             parent = parent.getparent()
             if parent is None:
                 return
-            name = parent.attrib.get('name')
+            name = parent.attrib.get("name")
             if name in outputs:
                 return name
 
@@ -178,31 +189,42 @@ def parse_config(config_string):
     inputs, outputs, labels = {}, {}, defaultdict(dict)
     for tag in xml_tree.iter():
         if _is_output_tag(tag):
-            outputs[tag.attrib['name']] = {'type': tag.tag, 'to_name': tag.attrib['toName'].split(',')}
+            outputs[tag.attrib["name"]] = {
+                "type": tag.tag,
+                "to_name": tag.attrib["toName"].split(","),
+            }
         elif _is_input_tag(tag):
-            inputs[tag.attrib['name']] = {'type': tag.tag, 'value': tag.attrib['value'].lstrip('$')}
+            inputs[tag.attrib["name"]] = {
+                "type": tag.tag,
+                "value": tag.attrib["value"].lstrip("$"),
+            }
         if tag.tag not in _LABEL_TAGS:
             continue
         parent_name = _get_parent_output_tag_name(tag, outputs)
         if parent_name is not None:
-            actual_value = tag.attrib.get('alias') or tag.attrib.get('value')
+            actual_value = tag.attrib.get("alias") or tag.attrib.get("value")
             if not actual_value:
                 logger.debug(
                     'Inspecting tag {tag_name}... found no "value" or "alias" attributes.'.format(
-                        tag_name=etree.tostring(tag, encoding='unicode').strip()[:50]))
+                        tag_name=etree.tostring(tag, encoding="unicode").strip()[:50]
+                    )
+                )
             else:
                 labels[parent_name][actual_value] = dict(tag.attrib)
     for output_tag, tag_info in outputs.items():
-        tag_info['inputs'] = []
-        for input_tag_name in tag_info['to_name']:
+        tag_info["inputs"] = []
+        for input_tag_name in tag_info["to_name"]:
             if input_tag_name not in inputs:
-                raise KeyError('to_name={input_tag_name} is specified for output tag name={output_tag}, '
-                               'but we can\'t find it among input tags'
-                               .format(input_tag_name=input_tag_name, output_tag=output_tag))
-            tag_info['inputs'].append(inputs[input_tag_name])
-        tag_info['labels'] = list(labels[output_tag])
-        tag_info['labels_attrs'] = labels[output_tag]
-    logger.debug('Parsed config:\n' + json.dumps(outputs, indent=2))
+                raise KeyError(
+                    "to_name={input_tag_name} is specified for output tag name={output_tag}, "
+                    "but we can't find it among input tags".format(
+                        input_tag_name=input_tag_name, output_tag=output_tag
+                    )
+                )
+            tag_info["inputs"].append(inputs[input_tag_name])
+        tag_info["labels"] = list(labels[output_tag])
+        tag_info["labels_attrs"] = labels[output_tag]
+    logger.debug("Parsed config:\n" + json.dumps(outputs, indent=2))
     return outputs
 
 
@@ -212,62 +234,75 @@ def parse_label_attrs(config_string):
 
 def iter_config_templates(templates_dir=None):
     try:
-        templates_dir = find_dir('examples') if templates_dir is None else find_dir(templates_dir)
+        templates_dir = (
+            find_dir("examples") if templates_dir is None else find_dir(templates_dir)
+        )
     except IOError:
         pass  # use templates_dir as is
 
     for d in os.listdir(templates_dir):
         # check xml config file exists
-        path = os.path.join(templates_dir, d, 'config.xml')
+        path = os.path.join(templates_dir, d, "config.xml")
         if not os.path.exists(path):
             continue
         yield path
 
 
 def get_config_templates(config):
-    """ Get label config templates from directory (as usual 'examples' directory)
-    """
+    """Get label config templates from directory (as usual 'examples' directory)"""
     from collections import defaultdict, OrderedDict
+
     templates = defaultdict(lambda: defaultdict(list))
 
-    template_dir = config.get('templates_dir', 'examples')
+    template_dir = config.get("templates_dir", "examples")
     for i, path in enumerate(iter_config_templates(template_dir)):
         # open and check xml
         code = open(path).read()
         try:
             objectify.fromstring(code)
         except Exception as e:
-            logger.error("Can't parse XML for label config template from " + path + ':' + str(e))
+            logger.error(
+                "Can't parse XML for label config template from " + path + ":" + str(e)
+            )
             continue
 
         # extract fields from xml and pass them to template
         try:
-            json_string = code.split('<!--')[1].split('-->')[0]
+            json_string = code.split("<!--")[1].split("-->")[0]
             meta = json.loads(json_string)
         except Exception as e:
-            logger.error("Can't parse meta info from label config " + path + ': ' + str(e))
+            logger.error(
+                "Can't parse meta info from label config " + path + ": " + str(e)
+            )
             continue
 
-        meta['pk'] = i
-        meta['label_config'] = '-->\n'.join(code.split('-->\n')[1:])  # remove all comments at the beginning of code
+        meta["pk"] = i
+        meta["label_config"] = "-->\n".join(
+            code.split("-->\n")[1:]
+        )  # remove all comments at the beginning of code
 
-        meta['category'] = meta['category'] if 'category' in meta else 'no category'
-        meta['complexity'] = meta['complexity'] if 'complexity' in meta else 'no complexity'
-        templates[meta['complexity']][meta['category']].append(meta)
+        meta["category"] = meta["category"] if "category" in meta else "no category"
+        meta["complexity"] = (
+            meta["complexity"] if "complexity" in meta else "no complexity"
+        )
+        templates[meta["complexity"]][meta["category"]].append(meta)
 
     # sort by title
     ordering = {
-        'basic': ['audio', 'image', 'text', 'html', 'time-series'],
-        'advanced': ['layouts', 'nested', 'per-region', 'other', 'time-series']
+        "basic": ["audio", "image", "text", "html", "time-series"],
+        "advanced": ["layouts", "nested", "per-region", "other", "time-series"],
     }
     ordered_templates = OrderedDict()
-    for complexity in ['basic', 'advanced']:
+    for complexity in ["basic", "advanced"]:
         ordered_templates[complexity] = OrderedDict()
         # add the rest from categories not presented in manual ordering
         x, y = ordering[complexity], templates[complexity].keys()
         ordering[complexity] = x + list((set(x) | set(y)) - set(x))
         for category in ordering[complexity]:
-            sort = sorted(templates[complexity][category], key=lambda z: z.get('order', None) or z['title'])
+            sort = sorted(
+                templates[complexity][category],
+                key=lambda z: z.get("order", None) or z["title"],
+            )
             ordered_templates[complexity][category] = sort
 
     return ordered_templates
@@ -296,12 +331,15 @@ def timestamp_now():
 
 
 def serialize_class(class_instance, keys=None):
-    """ Serialize class instance
+    """Serialize class instance
 
     param keys: list of fields to serialize
     """
-    keys = [d for d in dir(class_instance) if not d.startswith('_')] \
-        if keys is None else keys
+    keys = (
+        [d for d in dir(class_instance) if not d.startswith("_")]
+        if keys is None
+        else keys
+    )
 
     # execute fields
     dictionary = {key: getattr(class_instance, key) for key in keys}
@@ -310,9 +348,13 @@ def serialize_class(class_instance, keys=None):
     output = OrderedDict()
     for key in keys:
         value = dictionary[key]
-        if isinstance(value, str) or isinstance(value, bool) \
-                or isinstance(value, int) or isinstance(value, float) \
-                or value is None:
+        if (
+            isinstance(value, str)
+            or isinstance(value, bool)
+            or isinstance(value, int)
+            or isinstance(value, float)
+            or value is None
+        ):
             output[key] = dictionary[key]
 
     return output
@@ -356,12 +398,15 @@ def compare_with_none(field, inverted):
 
         result = b[field] < a[field]
         return not result if inverted else result
+
     return compare_with_none_func
 
 
 def check_port_in_use(host, port):
-    logger.info('Checking if host & port is available :: ' + str(host) + ':' + str(port))
-    host = host.replace('https://', '').replace('http://', '')
+    logger.info(
+        "Checking if host & port is available :: " + str(host) + ":" + str(port)
+    )
+    host = host.replace("https://", "").replace("http://", "")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex((host, port)) == 0
 
@@ -369,19 +414,20 @@ def check_port_in_use(host, port):
 def start_browser(ls_url, no_browser):
     import threading
     import webbrowser
+
     if no_browser:
         return
 
-    browser_url = ls_url + '/welcome'
+    browser_url = ls_url + "/welcome"
     threading.Timer(2.5, lambda: webbrowser.open(browser_url)).start()
-    print('Start browser at URL: ' + browser_url)
+    print("Start browser at URL: " + browser_url)
 
 
 def get_latest_version():
-    pypi_url = 'https://pypi.org/pypi/%s/json' % label_studio.package_name
+    pypi_url = "https://pypi.org/pypi/%s/json" % label_studio.package_name
     try:
         response = requests.get(pypi_url).text
-        latest_version = json.loads(response)['info']['version']
+        latest_version = json.loads(response)["info"]["version"]
     except Exception as exc:
         logger.error("Can't get latest version.", exc_info=True)
     else:
@@ -400,4 +446,4 @@ def str2datetime(timestamp_str):
     except:
         return timestamp_str
     # return datetime.utcfromtimestamp(ts).strftime('%Y%m%d.%H%M%S')
-    return datetime.utcfromtimestamp(ts).strftime('%c')
+    return datetime.utcfromtimestamp(ts).strftime("%c")

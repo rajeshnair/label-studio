@@ -20,77 +20,79 @@ PRESIGNED_URL_TTL_MINUTES = 1
 
 def resolve_task_data_uri(task, **kwargs):
     out = {}
-    for key, data in task['data'].items():
+    for key, data in task["data"].items():
         if not isinstance(data, str):
             out[key] = data
-        elif data.startswith('s3://'):
+        elif data.startswith("s3://"):
             out[key] = resolve_s3(data, **kwargs)
-        elif data.startswith('gs://'):
+        elif data.startswith("gs://"):
             out[key] = resolve_gs(data, **kwargs)
         else:
             out[key] = data
-    task['data'] = out
+    task["data"] = out
     return task
 
 
 def _get_s3_params_from_project(project):
     params = {}
-    if not hasattr(project, 'source_storage'):
+    if not hasattr(project, "source_storage"):
         return params
     storage = project.source_storage
-    if hasattr(storage, 'aws_access_key_id'):
-        params['aws_access_key_id'] = storage.aws_access_key_id
-    if hasattr(storage, 'aws_secret_access_key'):
-        params['aws_secret_access_key'] = storage.aws_secret_access_key
-    if hasattr(storage, 'aws_session_token'):
-        params['aws_session_token'] = storage.aws_session_token
-    if hasattr(storage, 'region'):
-        params['region'] = storage.region
+    if hasattr(storage, "aws_access_key_id"):
+        params["aws_access_key_id"] = storage.aws_access_key_id
+    if hasattr(storage, "aws_secret_access_key"):
+        params["aws_secret_access_key"] = storage.aws_secret_access_key
+    if hasattr(storage, "aws_session_token"):
+        params["aws_session_token"] = storage.aws_session_token
+    if hasattr(storage, "region"):
+        params["region"] = storage.region
     return params
 
 
 def resolve_s3(url, s3_client=None, **kwargs):
     r = urlparse(url, allow_fragments=False)
     bucket_name = r.netloc
-    key = r.path.lstrip('/')
+    key = r.path.lstrip("/")
     if s3_client is None:
-        if 'project' in kwargs:
-            params = _get_s3_params_from_project(kwargs['project'])
+        if "project" in kwargs:
+            params = _get_s3_params_from_project(kwargs["project"])
         else:
             params = kwargs
         s3_client, _ = get_client_and_resource(**params)
     try:
         presigned_url = s3_client.generate_presigned_url(
-            ClientMethod='get_object',
-            Params={'Bucket': bucket_name, 'Key': key}
+            ClientMethod="get_object", Params={"Bucket": bucket_name, "Key": key}
         )
     except ClientError as exc:
-        logger.warning('Can\'t generate presigned URL from ' + url)
+        logger.warning("Can't generate presigned URL from " + url)
         return url
     else:
-        logger.debug('Presigned URL {presigned_url} generated for {url}'.format(
-            presigned_url=presigned_url, url=url))
+        logger.debug(
+            "Presigned URL {presigned_url} generated for {url}".format(
+                presigned_url=presigned_url, url=url
+            )
+        )
         return presigned_url
 
 
 def resolve_gs(url, **kwargs):
     r = urlparse(url, allow_fragments=False)
     bucket_name = r.netloc
-    key = r.path.lstrip('/')
+    key = r.path.lstrip("/")
     if is_gce_instance():
-        logger.debug('Generate signed URL for GCE instance')
+        logger.debug("Generate signed URL for GCE instance")
         return python_cloud_function_get_signed_url(bucket_name, key)
     else:
-        logger.debug('Generate signed URL for local instance')
+        logger.debug("Generate signed URL for local instance")
         return generate_download_signed_url_v4(bucket_name, key)
 
 
 def is_gce_instance():
     """Check if it's GCE instance via DNS lookup to metadata server"""
     try:
-      socket.getaddrinfo('metadata.google.internal', 80)
+        socket.getaddrinfo("metadata.google.internal", 80)
     except socket.gaierror:
-      return False
+        return False
     return True
 
 
@@ -116,7 +118,7 @@ def generate_download_signed_url_v4(bucket_name, blob_name):
         method="GET",
     )
 
-    logger.debug('Generated GCS signed url: ' + url)
+    logger.debug("Generated GCS signed url: " + url)
     return url
 
 
@@ -136,6 +138,10 @@ def python_cloud_function_get_signed_url(bucket_name, blob_name):
     signed_blob_path = data_bucket.blob(blob_name)
     expires_at_ms = datetime.now() + timedelta(minutes=PRESIGNED_URL_TTL_MINUTES)
     # This next line is the trick!
-    signing_credentials = compute_engine.IDTokenCredentials(auth_request, "", service_account_email=credentials.service_account_email)
-    signed_url = signed_blob_path.generate_signed_url(expires_at_ms, credentials=signing_credentials, version="v4")
+    signing_credentials = compute_engine.IDTokenCredentials(
+        auth_request, "", service_account_email=credentials.service_account_email
+    )
+    signed_url = signed_blob_path.generate_signed_url(
+        expires_at_ms, credentials=signing_credentials, version="v4"
+    )
     return signed_url
