@@ -135,25 +135,23 @@ class Analytics(object):
             pass
         try:
             payload = {
-                "server_id": self.server_id,
-                "server_time": self._get_timestamp_now(),
-                "session_id": session.get("session_id"),
-                "user_agent": request.user_agent.string,
-                "url": request.url,
-                "endpoint": request.endpoint,
-                "method": request.method,
-                "values": dict(request.values),
-                "json": j,
-                "is_docker": self.is_docker,
-                "is_multi_session": self.is_multi_session,
-                "accept_language": request.accept_languages.to_header(),
-                "content_type": request.content_type,
-                "content_length": request.content_length,
-                "env": self.env,
-                "version": self.version,
-                "project_name": self.input_args.project_name
-                if self.input_args
-                else None,
+                'server_id': self.server_id,
+                'server_time': self._get_timestamp_now(),
+                'session_id': session.get('session_id'),
+                'user_agent': request.user_agent.string,
+                'url': request.url,
+                'endpoint': request.endpoint.replace('label_studio.', ''),
+                'method': request.method,
+                'values': dict(request.values),
+                'json': j,
+                'is_docker': self.is_docker,
+                'is_multi_session': self.is_multi_session,
+                'accept_language': request.accept_languages.to_header(),
+                'content_type': request.content_type,
+                'content_length': request.content_length,
+                'env': self.env,
+                'version': self.version,
+                'project_name': self.input_args.project_name if self.input_args else None
             }
         except:
             pass
